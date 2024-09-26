@@ -72,7 +72,7 @@ class GroupedProphet(GroupedForecaster):
             warnings.warn(*_warning, stacklevel=2)
             print(f"WARNING: {_warning[0]}")
 
-    def fit(self, df, group_key_columns, y_col="y", datetime_col="ds", **kwargs):
+    def fit(self, df, group_key_columns, y_col="y", datetime_col="ds", cap_col=None, floor_col=None, **kwargs):
         """
         Main ``fit`` method for executing a Prophet ``fit`` on the submitted DataFrame, grouped by
         the ``group_key_columns`` submitted.
@@ -127,7 +127,6 @@ class GroupedProphet(GroupedForecaster):
                        #hyperparameter-tuning).
         :return: object instance (self) of GroupedProphet
         """
-
         self._model_init_check()
         self._group_key_columns = group_key_columns
 
@@ -137,9 +136,13 @@ class GroupedProphet(GroupedForecaster):
             df.rename(columns={y_col: "y"}, inplace=True)
         if datetime_col != "ds":
             df.rename(columns={datetime_col: "ds"}, inplace=True)
+        if cap_col and cap_col != "cap":
+            df.rename(columns={cap_col: "cap"}, inplace=True)
+        if floor_col and floor_col != "floor":
+            df.rename(columns={floor_col: "floor"}, inplace=True)
 
         grouped_data = PandasGroupGenerator(
-            self._group_key_columns, self._datetime_col, self._y_col
+            self._group_key_columns, self._datetime_col, self._y_col, cap_col, floor_col
         ).generate_processing_groups(df)
 
         fit_model = []
@@ -211,7 +214,7 @@ class GroupedProphet(GroupedForecaster):
         _validate_keys_in_df(df, self._group_key_columns)
 
         grouped_data = PandasGroupGenerator(
-            self._group_key_columns, self._datetime_col, self._y_col
+            self._group_key_columns, self._datetime_col, self._y_col, self._cap_col, self._floor_col
         ).generate_prediction_groups(df)
 
         predictions = self._run_predictions(grouped_data)

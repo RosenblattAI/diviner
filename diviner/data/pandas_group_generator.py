@@ -30,7 +30,7 @@ class PandasGroupGenerator(BaseGroupGenerator):
 
     """
 
-    def __init__(self, group_key_columns: Tuple, datetime_col: str, y_col: str):
+    def __init__(self, group_key_columns: Tuple, datetime_col: str, y_col: str, cap_col: str = None, floor_col: str = None):
         """
         :param group_key_columns: Grouping columns that a combination of which designates a
                                   combination of ``ds`` and ``y`` that represent a distinct series.
@@ -38,7 +38,21 @@ class PandasGroupGenerator(BaseGroupGenerator):
                              each series.
         :param y_col: The endogenous regressor element of the series. This is the value that is
                       used for training and is the element that is intending to be forecast.
+
+        :param cap_col: ...
+
+        :param floor_col: ...
         """
+
+        if cap_col and floor_col:
+            self._cap_col = cap_col
+            self._floor_col = floor_col
+        elif (cap_col is None) and (floor_col is None):
+            self._cap_col = cap_col
+            self._floor_col = floor_col
+        else:
+            raise Exception('Must include **both** cap_col and floor_col or **neither**')
+
         self._group_key_columns = group_key_columns
         self._datetime_col = datetime_col
         self._y_col = y_col
@@ -135,9 +149,16 @@ class PandasGroupGenerator(BaseGroupGenerator):
 
         master_key_generation = self._get_df_with_master_key_column(df)
 
+        select_cols = [self._y_col]
+        agg = "sum"
+
+        if self._cap_col and self._floor_col:
+            select_cols += [self._cap_col, self._floor_col]
+            agg = {self._y_col: "sum", self._cap_col: "first", self._floor_col: "first"}
+
         group_consolidation_df = (
-            master_key_generation.groupby([self._master_group_key, self._datetime_col])[self._y_col]
-            .agg("sum")
+            master_key_generation.groupby([self._master_group_key, self._datetime_col])[select_cols]
+            .agg(agg)
             .reset_index()
         )
 
